@@ -1,6 +1,7 @@
 import time
 import Millennium
 from datetime import datetime
+import pygit2
 import git, os, json, shutil
 from unidiff import PatchSet
 from api.themes_store import find_all_themes
@@ -31,12 +32,11 @@ class Updater:
             path = os.path.join(Millennium.steam_path(), "steamui", "skins", theme["native"])
             # Initialize the repository
             try: 
-                repo = git.Repo(path)
+                repo = pygit2.Repository(path)
                 # print(f"successfully opened {theme['native-name']}")
                 self.update_query.append((theme, repo))
-                repo.close()
 
-            except git.InvalidGitRepositoryError:
+            except pygit2.GitError as e:
                 if "github" in theme["data"]:
                     needs_copy = True
                     update_queue.append((theme, path))
@@ -99,7 +99,7 @@ class Updater:
             repo_url = f'https://github.com/{data["owner"]}/{data["repo_name"]}.git'
             print(repo_url)
             # Clone the repository
-            git.Repo.clone_from(repo_url, path)
+            pygit2.clone_repository(repo_url, path)
 
         except Exception as e:
             # Code to handle the exception
@@ -109,26 +109,35 @@ class Updater:
         path = os.path.join(Millennium.steam_path(), "steamui", "skins", native)
         # Initialize the repository
         try: 
-            repo = git.Repo(path)
-            o = repo.remotes.origin
-            repo.git.reset('--hard')
-            repo.git.clean('-xdf')
-            o.pull()
 
-        except git.InvalidGitRepositoryError:
+            repository = pygit2.Repository(path)
+
+            # Fetch latest changes from remote
+            remote = repository.remotes['origin']
+            remote.fetch()
+
+            # Get the latest commit ID
+            latest_commit_id = remote.default_branch.target
+
+            # Checkout the latest commit
+            repository.checkout(latest_commit_id)
+
+        except pygit2.GitError as e:
             return False
         
         self.re_initialize()
         return True
 
-    def needs_update(self, remote_commit: str, theme: str, repo: git.Repo):
+    def needs_update(self, remote_commit: str, theme: str, repo: pygit2.Repository):
 
         # Get the default branch name
-        default_branch = repo.active_branch.name
+        default_branch = repo.head.name
 
-        # Get the local and remote commit hashes for the default branch
-        local_commit = getattr(repo.heads[default_branch], "commit", None)
-        needs_update = str(local_commit) != str(remote_commit)
+        # Get the local commit hash for the default branch
+        local_commit_hash = str(repo.revparse_single(repo.head.target).id)
+
+        # Compare local and remote commit hashes
+        needs_update = local_commit_hash != str(remote_commit)
 
         # # Compare the local and remote commit hashes
         return needs_update

@@ -2,7 +2,8 @@
   "scripts": {
     "dev": "millennium-lib --build dev",
     "build": "millennium-lib --build prod",
-    "create-env": "python -m venv .venv"
+    "create-env": "python -m venv .venv",
+    "activate-windows": "cd .venv/Scripts && activate.bat"
   },
   "devDependencies": {
     "@types/react": "16.14.0",
@@ -26,5 +27,8 @@
         "react-dom"
       ]
     }
+  },
+  "dependencies": {
+    "millennium-lib": "^3.4.4"
   }
 }

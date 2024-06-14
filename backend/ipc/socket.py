@@ -1,7 +1,7 @@
 import asyncio
 import os, stat
 import shutil
-import git
+import pygit2
 import websockets
 import json
 import Millennium
@@ -57,9 +57,18 @@ def install_theme(repo, owner):
         print(f"cloning requested theme to -> {path}")
         os.makedirs(path)
 
-        git.Repo.clone_from(f"https://github.com/{owner}/{repo}.git", path, recursive=True)
+        pygit2.clone_repository(f"https://github.com/{owner}/{repo}.git", path)
 
-    except git.GitCommandError as e:
+        repo = pygit2.Repository(path)
+
+        # Initialize submodules
+        for submodule in repo.submodules:
+            submodule_url = submodule.url
+            submodule_path = submodule.path
+            pygit2.clone_repository(submodule_url, submodule_path)
+            # submodule.update(init=True, recursive=True)
+
+    except pygit2.GitError as e:
         return json.dumps({'success': False, 'message': str(e)})
     
     return json.dumps({'success': True})
